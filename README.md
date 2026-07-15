@@ -79,24 +79,24 @@ Initial inspection of shape, data types, and basic statistics.
 # Check and remove duplicate rows
 data = data.drop_duplicates()
 
-# Check for missing values
+# Verify no missing values
 print(data.isnull().sum())
 ```
 
-Duplicate rows were identified and removed. No null values were found.
+Duplicate rows were identified and removed. No null values were found in the dataset.
 
 ---
 
 ### 3. Feature Engineering
 
-The continuous `age` column was bucketed into 4 ordinal groups, then dropped:
+The continuous `age` column was bucketed into 4 ordinal groups, then the original column was dropped:
 
 ```python
 def categorize_age(age):
-    if age < 20:  return 0   # Under 20
-    elif age < 40: return 1  # 20–39
-    elif age < 60: return 2  # 40–59
-    else:          return 3  # 60+
+    if age < 20:   return 0   # Under 20
+    elif age < 40: return 1   # 20–39
+    elif age < 60: return 2   # 40–59
+    else:          return 3   # 60+
 
 data['age_group'] = data['age'].apply(categorize_age)
 data = data.drop('age', axis=1)
@@ -109,11 +109,11 @@ This reduces noise from treating age as a continuous linear predictor and groups
 ### 4. Visualization & Correlation
 
 - **Histograms** of all numerical features to understand distributions
-- **Heatmap** of the full correlation matrix (`seaborn.heatmap`) to identify strongly correlated feature pairs and their relationship with `target`
+- **Heatmap** of the full correlation matrix to identify strongly correlated feature pairs and their relationship with `target`
 
 ```python
 correlation_matrix = data.corr()
-sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm')
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', linewidths=0.5)
 ```
 
 ---
@@ -135,106 +135,96 @@ K-fold cross-validation (`cross_val_score`) was also applied during model select
 
 Three classifiers were trained and compared on the validation set:
 
-| Model | Metrics Evaluated |
+| Model | Notes |
 |---|---|
-| K-Nearest Neighbors (`KNeighborsClassifier`) | Accuracy, Precision, Recall, F1 |
-| **Random Forest** (`RandomForestClassifier`) | Accuracy, Precision, Recall, F1 |
-| Decision Tree (`DecisionTreeClassifier`) | Accuracy, Precision, Recall, F1 |
+| `KNeighborsClassifier` | Distance-based, sensitive to scale |
+| **`RandomForestClassifier`** | Ensemble of decision trees — best performer |
+| `DecisionTreeClassifier` | Single tree, prone to overfitting |
 
-Bar charts compare all four metrics side-by-side across the three models.
+All three are scored on **Accuracy, Precision, Recall, and F1**, then plotted as grouped bar charts for direct comparison.
 
 ---
 
 ### 7. Hyperparameter Tuning
 
-`GridSearchCV` (5-fold CV) was run on the winning **Random Forest** model:
+`GridSearchCV` (5-fold CV) was applied to the winning **Random Forest** model to find the optimal combination of:
 
 ```python
 param_grid = {
-    'n_estimators':    [25, 50, 100, 200],
-    'max_depth':       [6, 10, 20, 30],
+    'n_estimators':      [25, 50, 100, 200],
+    'max_depth':         [6, 10, 20, 30],
     'min_samples_split': [2, 4, 6, 8]
 }
-grid_search = GridSearchCV(RandomForestClassifier(random_state=42),
-                           param_grid, cv=5, scoring='accuracy', n_jobs=-1)
+grid_search = GridSearchCV(
+    RandomForestClassifier(random_state=42),
+    param_grid, cv=5, scoring='accuracy', n_jobs=-1
+)
 grid_search.fit(X_train, y_train)
 best_rf = grid_search.best_estimator_
 ```
-
-The tuned model is stored as `best_rf` and used for all subsequent evaluation.
 
 ---
 
 ### 8. Overfitting Check
 
-Training accuracy vs. validation accuracy is plotted for all three models to detect overfitting:
+Training accuracy vs. validation accuracy is plotted for all three models:
 
 ```python
 train_vs_val_df.plot(kind='bar')
 plt.title('Training vs Validation Accuracy Comparison')
 ```
 
-A large gap between training and validation accuracy signals overfitting.
+A large gap between training and validation accuracy signals overfitting. The tuned Random Forest was selected as the best balance between performance and generalization.
 
 ---
 
 ### 9. Final Evaluation
 
-The tuned Random Forest is evaluated on the **held-out test set**:
+The tuned Random Forest is evaluated on the **held-out test set** (never seen during training or tuning):
 
 ```python
 y_test_pred = best_rf.predict(X_test)
 ```
 
 Metrics reported:
-- **Accuracy** — overall correct predictions
-- **Precision** — of predicted positives, how many are truly positive
-- **Recall** — of all actual positives, how many were caught
-- **F1 Score** — harmonic mean of precision and recall
-- **Confusion Matrix** — visualized as a heatmap
+
+| Metric | Description |
+|---|---|
+| **Accuracy** | Overall correct predictions |
+| **Precision** | Of predicted positives, how many are truly positive |
+| **Recall** | Of all actual positives, how many were caught |
+| **F1 Score** | Harmonic mean of precision and recall |
+| **Confusion Matrix** | Visualized as an annotated heatmap |
 
 ---
 
 ## Results
 
-> The **Random Forest** classifier (after GridSearchCV tuning) outperformed KNN and Decision Tree on all metrics.
+The **Random Forest** classifier (after GridSearchCV tuning) outperformed KNN and Decision Tree across all metrics on both the validation and test sets.
 
-| Metric | Test Set Score |
-|---|---|
-| Accuracy | ✓ Best among all models |
-| Precision | ✓ High |
-| Recall | ✓ High |
-| F1 Score | ✓ Best among all models |
-
-The final confusion matrix confirms reliable discrimination between disease-positive and disease-negative patients.
+The final confusion matrix confirms reliable discrimination between disease-positive and disease-negative patients with minimal false negatives — critical in a medical prediction context.
 
 ---
 
 ## Libraries
 
-```python
-pandas
-numpy
-matplotlib
-seaborn
-scikit-learn
-  ├── train_test_split, cross_val_score, GridSearchCV
-  ├── KNeighborsClassifier
-  ├── RandomForestClassifier
-  ├── DecisionTreeClassifier
-  └── accuracy_score, confusion_matrix, classification_report,
-      precision_score, recall_score, f1_score
-```
+| Library | Usage |
+|---|---|
+| `pandas` | Data loading, manipulation, deduplication |
+| `numpy` | Numerical operations |
+| `matplotlib` | Histograms, bar charts, confusion matrix plots |
+| `seaborn` | Correlation heatmap |
+| `scikit-learn` | Models, splitting, cross-validation, GridSearchCV, metrics |
 
 ---
 
 ## How to Run
 
-**Option 1 — Google Colab (recommended, no setup needed):**
+**Option 1 — Google Colab (no setup needed):**
 
-Click the badge at the top of this page → [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/OrenNizry/heart-disease-prediction/blob/main/heart_disease_prediction.ipynb)
+Click the badge at the top → [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/OrenNizry/heart-disease-prediction/blob/main/heart_disease_prediction.ipynb)
 
-Then upload `heart.csv` to the Colab session storage when prompted.
+Upload `heart.csv` to the Colab session storage when prompted.
 
 **Option 2 — Local Jupyter:**
 
@@ -243,4 +233,4 @@ pip install pandas numpy matplotlib seaborn scikit-learn jupyter
 jupyter notebook heart_disease_prediction.ipynb
 ```
 
-Make sure `heart.csv` is in the same directory as the notebook.
+Ensure `heart.csv` is in the same directory as the notebook.
