@@ -2,7 +2,7 @@
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/OrenNizry/heart-disease-prediction/blob/main/heart_disease_prediction.ipynb)
 
-> **Author:** Oren Nizry (208708784)  
+> **Author:** Oren Nizry  
 > **Language:** Python 3 · Jupyter Notebook  
 > **Dataset:** `heart.csv` — Cleveland Heart Disease dataset
 
